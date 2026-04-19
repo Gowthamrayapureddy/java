@@ -1,125 +1,146 @@
-package mobile_testing_app;
 
-import io.appium.java_client.MobileElement;
-import io.appium.java_client.android.AndroidDriver;
-import org.openqa.selenium.By;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.remote.DesiredCapabilities;
+package microwave;
 
-import java.net.URL;
 
-public class Assignment {
+import static org.junit.Assert.assertTrue;
 
-    public static void main(String[] args) throws Exception {
 
-        DesiredCapabilities caps = new DesiredCapabilities();
-        caps.setCapability("platformName", "Android");
-        caps.setCapability("deviceName", "Android Emulator");
-        caps.setCapability("appPackage", "com.example.myapplication");
-        caps.setCapability("appActivity", "MainActivity");
+public class MicrowaveProperties {
 
-        AndroidDriver<MobileElement> driver =
-                new AndroidDriver<>(new URL("http://127.0.0.1:4723/wd/hub"), caps);
 
-        Thread.sleep(3000);
+    public static boolean implies(boolean A, boolean B) {
 
-        // (1) Check login page
-        assert driver.findElement(By.id("login")).isDisplayed();
+        return (!A || B);
 
-        // (2) Enter username
-        driver.findElement(By.id("username")).sendKeys("company");
-
-        // (3) Focus password
-        driver.findElement(By.id("password")).click();
-
-        // (4) Enter password
-        driver.findElement(By.id("password")).sendKeys("company");
-
-        // (5) Focus username
-        driver.findElement(By.id("username")).click();
-
-        // (6) Clear username
-        driver.findElement(By.id("username")).clear();
-
-        // (7) Click login (should fail)
-        driver.findElement(By.id("login")).click();
-
-        // (8) Re-enter username
-        driver.findElement(By.id("username")).sendKeys("company");
-
-        // (9) Login success
-        driver.findElement(By.id("login")).click();
-        Thread.sleep(3000);
-
-        // (10) Go to payment page
-        driver.findElement(By.id("makePayment")).click();
-
-        // (11) Enter phone
-        driver.findElement(By.id("phone")).sendKeys("612-555-0112");
-
-        // (12) Enter name
-        driver.findElement(By.id("name")).sendKeys("Alice");
-
-        // (13) Drag slider to $35
-        MobileElement slider = driver.findElement(By.id("amount"));
-        int startX = slider.getLocation().getX();
-        int endX = startX + 200;
-        int y = slider.getLocation().getY();
-
-        new Actions(driver)
-                .dragAndDropBy(slider, 200, 0)
-                .perform();
-
-        // (14) Send payment (fail)
-        driver.findElement(By.id("sendPayment")).click();
-
-        // (15) Enter country
-        driver.findElement(By.id("country")).sendKeys("United States");
-
-        // (16) Cancel
-        driver.findElement(By.id("cancel")).click();
-
-        // (17) Go back to payment
-        driver.findElement(By.id("makePayment")).click();
-
-        // (18) Enter phone
-        driver.findElement(By.id("phone")).sendKeys("612-555-0355");
-
-        // (19) Enter name
-        driver.findElement(By.id("name")).sendKeys("Bob");
-
-        // (20) Slider to $55
-        slider = driver.findElement(By.id("amount"));
-        new Actions(driver)
-                .dragAndDropBy(slider, 300, 0)
-                .perform();
-
-        // (21) Open country list
-        driver.findElement(By.id("countryButton")).click();
-
-        // (22) Select France (scroll or index)
-        driver.findElement(By.xpath("//android.widget.TextView[@text='France']")).click();
-
-        // (23) Send payment → alert
-        driver.findElement(By.id("sendPayment")).click();
-        Thread.sleep(2000);
-
-        // (24) Dismiss alert
-        driver.switchTo().alert().dismiss();
-
-        // (25) Send again
-        driver.findElement(By.id("sendPayment")).click();
-
-        // (26) Accept alert
-        driver.switchTo().alert().accept();
-
-        Thread.sleep(2000);
-
-        // (27) Logout
-        driver.findElement(By.id("logout")).click();
-
-        System.out.println("All tests executed successfully!");
-
-        driver.quit();
     }
+
+
+    TrueWithin condition;
+
+
+    MicrowaveProperties(Microwave microwave) {
+
+        condition = new TrueWithin(microwave.getTickRateInHz() + 1);
+
+    }
+
+
+    public void checkProperties(InputRecord previousInput, OutputRecord previousOutput,
+
+                                InputRecord currentInput, OutputRecord currentOutput) {
+
+        try {
+
+            assertTrue("The microwave shall be in cooking mode only when the door is closed",
+
+                    implies(currentOutput.mode == ModeController.Mode.Cooking, currentInput.doorOpen == false));
+
+
+            assertTrue("If current time to cook is zero, then mode is setup mode.",
+
+                    implies(currentOutput.timeToCook == 0, currentOutput.mode == ModeController.Mode.Setup));
+
+
+            assertTrue("When the microwave is cooking, within tickRateInHz ticks, the time to cook will decrease",
+
+                    condition.check(implies(currentOutput.mode == ModeController.Mode.Cooking &&
+
+                            previousOutput.mode == ModeController.Mode.Cooking,
+
+                            currentOutput.timeToCook < previousOutput.timeToCook)));
+
+
+            assertTrue("When the microwave is cooking, the time is either the same or decreases by one",
+
+                    implies(currentOutput.mode == ModeController.Mode.Cooking &&
+
+                                    previousOutput.mode == ModeController.Mode.Cooking,
+
+                            currentOutput.timeToCook == previousOutput.timeToCook ||
+
+                                    currentOutput.timeToCook == previousOutput.timeToCook - 1));
+
+
+            assertTrue("seconds to cook is always >= 0",
+
+                    currentOutput.timeToCook >= 0);
+
+
+            assertTrue("At the instant the clear button is pressed, if the microwave was cooking, then the microwave shall stop cooking",
+
+                    implies(currentInput.clearPressed && previousOutput.mode == ModeController.Mode.Cooking,
+
+                            currentOutput.mode != ModeController.Mode.Cooking));
+
+
+            assertTrue("At the instant when the clear button is pressed, if the microwave is in suspended mode, it shall enter the setup mode",
+
+                    implies(currentInput.clearPressed && previousOutput.mode == ModeController.Mode.Suspended,
+
+                            currentOutput.mode == ModeController.Mode.Setup));
+
+
+            assertTrue("If in suspended mode, at the instant the start key is pressed the microwave shall enter cooking mode if the door is closed and the seconds_to_cook is greater than 0",
+
+                    implies(previousOutput.mode == ModeController.Mode.Suspended && currentInput.startPressed &&
+
+                            !currentInput.doorOpen && currentOutput.timeToCook > 0,
+
+                            currentOutput.mode == ModeController.Mode.Cooking));
+
+
+            assertTrue("If in suspended mode, at the instant the start key is pressed the microwave shall remain in suspended mode if the door is open and the seconds_to_cook is greater than 0",
+
+                    implies(previousOutput.mode == ModeController.Mode.Suspended && currentInput.startPressed &&
+
+                            currentInput.doorOpen && currentOutput.timeToCook > 0,
+
+                            currentOutput.mode == ModeController.Mode.Suspended));
+
+
+            assertTrue("If the mode is setup or suspended and the clear button is pressed, the steps to cook shall be zero",
+
+                    implies((previousOutput.mode == ModeController.Mode.Setup || previousOutput.mode == ModeController.Mode.Suspended) &&
+
+                                    currentInput.clearPressed,
+
+                            currentOutput.timeToCook == 0));
+
+
+            assertTrue("If the display is quiescent (no buttons pressed) and mode was setup, the mode is still setup and the seconds_to_cook shall not change.",
+
+                    implies(!currentInput.clearPressed &&
+
+                                    !currentInput.startPressed &&
+
+                                    !currentInput.digitPressed &&
+
+                                    !currentInput.presetPressed &&
+
+                                    previousOutput.mode == ModeController.Mode.Setup,
+
+                            currentOutput.mode == ModeController.Mode.Setup &&
+
+                                    currentOutput.timeToCook == previousOutput.timeToCook));
+
+        } catch (Throwable e) {
+
+            System.out.println("Exception occurred during property check.  ");
+
+            System.out.println("Exception: " + e.toString());
+
+            System.out.println("Previous Input: " + previousInput.toString());
+
+            System.out.println("Previous Output: " + previousOutput.toString());
+
+            System.out.println("Current Input: " + currentInput.toString());
+
+            System.out.println("Current Output: " + currentOutput.toString());
+
+            throw e;
+
+        }
+
+    }
+
 }
